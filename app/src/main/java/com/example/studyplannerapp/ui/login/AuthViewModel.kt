@@ -1,14 +1,14 @@
-package com.example.authdemo.ui
+package com.example.studyplannerapp.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.authdemo.data.SupabaseClient
-import io.github.jan.supabase.auth.auth
+import com.example.studyplannerapp.network.SupabaseClient
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 // Which screen is currently shown
@@ -21,10 +21,9 @@ data class AuthUiState(
     val confirmPassword: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val infoMessage: String? = null,   // e.g. "Check your email"
+    val infoMessage: String? = null,
     val isLoggedIn: Boolean = false,
     // True while the SDK is still reading a saved session from disk on launch.
-    // Show a splash/loading state instead of the login screen while this is true.
     val isCheckingSession: Boolean = true
 )
 
@@ -34,9 +33,9 @@ class AuthViewModel : ViewModel() {
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     init {
-        // Supabase persists the session to disk automatically after any sign-in.
-        // On launch it re-reads that saved session and, if the access token is
-        // expired, silently refreshes it — this stream tells us the result.
+        // Supabase persists the session to disk after any sign-in. On launch it
+        // re-reads that session and refreshes it if needed. This stream tells us
+        // the result so we can show the right screen.
         viewModelScope.launch {
             SupabaseClient.auth.sessionStatus.collect { status ->
                 when (status) {
@@ -47,8 +46,6 @@ class AuthViewModel : ViewModel() {
                         it.copy(isLoggedIn = false, isCheckingSession = false)
                     }
                     is SessionStatus.RefreshFailure -> _uiState.update {
-                        // Had a saved session but couldn't refresh it (e.g. offline,
-                        // or the refresh token was revoked) — fall back to login.
                         it.copy(
                             isLoggedIn = false,
                             isCheckingSession = false,
@@ -65,8 +62,6 @@ class AuthViewModel : ViewModel() {
 
     fun logout() = viewModelScope.launch {
         SupabaseClient.auth.signOut()
-        // sessionStatus will emit NotAuthenticated automatically after this,
-        // which updates isLoggedIn via the collector above.
     }
 
     // ---------- Field updates ----------
@@ -90,7 +85,8 @@ class AuthViewModel : ViewModel() {
                 email = state.email
                 password = state.password
             }
-            _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
+            // sessionStatus emits Authenticated, which flips isLoggedIn above.
+            _uiState.update { it.copy(isLoading = false) }
         } catch (e: Exception) {
             _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Login failed") }
         }
@@ -117,8 +113,8 @@ class AuthViewModel : ViewModel() {
                 email = state.email
                 password = state.password
             }
-            // Depending on your Supabase project settings, email confirmation
-            // may be required before the session becomes active.
+            // Depending on project settings, email confirmation may be required
+            // before the session becomes active.
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -142,17 +138,14 @@ class AuthViewModel : ViewModel() {
         try {
             SupabaseClient.auth.resetPasswordForEmail(state.email)
             _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    infoMessage = "Reset link sent. Check your email.",
-                )
+                it.copy(isLoading = false, infoMessage = "Reset link sent. Check your email.")
             }
         } catch (e: Exception) {
             _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Could not send reset email") }
         }
     }
 
-    // ---------- Reset password: called after the deep link brings back a recovery session ----------
+    // ---------- Reset password: after the deep link brings back a recovery session ----------
     fun updatePasswordAfterRecovery() = viewModelScope.launch {
         val state = _uiState.value
         if (state.password.length < 6) {
@@ -186,9 +179,4 @@ class AuthViewModel : ViewModel() {
     fun onRecoveryDeepLinkReceived() {
         _uiState.update { it.copy(screen = AuthScreen.RESET_PASSWORD, errorMessage = null, infoMessage = null) }
     }
-}
-
-// Small helper so MutableStateFlow.update reads cleanly above
-private fun <T> MutableStateFlow<T>.update(transform: (T) -> T) {
-    value = transform(value)
 }

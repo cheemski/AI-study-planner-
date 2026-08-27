@@ -1,22 +1,22 @@
 package com.example.studyplannerapp.network.models
 
+import com.google.gson.annotations.SerializedName
+
 data class QuizRequest(
     val subject: String,
-    val numQuestions: Int = 10
+    @SerializedName("num_questions") val numQuestions: Int = 10 // server caps at 20
 )
 
-data class QuizResponse(
-    val result: Quiz
-)
+data class QuizResponse(val result: Quiz)
 
 data class Quiz(
-    val quizTitle: String,
+    @SerializedName("quiz_title") val quizTitle: String,
     val questions: List<QuizQuestion>
 )
 
 data class QuizQuestion(
     val question: String,
-    val options: List<String>,
-    val correctAnswer: String,
+    val options: List<String>,               // always exactly 4
+    @SerializedName("correct_answer") val correctAnswer: String, // matches one of `options` exactly
     val explanation: String
 )
