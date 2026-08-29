@@ -69,6 +69,7 @@ dependencies {
     implementation(platform("io.github.jan-tennert.supabase:bom:3.6.0"))
     implementation("io.github.jan-tennert.supabase:auth-kt")       // login/register/reset
     implementation("io.github.jan-tennert.supabase:postgrest-kt")  // for StudyRepository's DB calls
+    implementation("io.github.jan-tennert.supabase:supabase-kt:VERSION")
 
     // --- Ktor client engine (required — Supabase's client runs on Ktor) ---
     implementation("io.ktor:ktor-client-android:3.1.0")

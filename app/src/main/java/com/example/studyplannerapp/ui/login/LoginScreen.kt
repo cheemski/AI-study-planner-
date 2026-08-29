@@ -16,50 +16,82 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import com.example.studyplannerapp.R
+import androidx.compose.material.icons.filled.Login
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.material.icons.filled.Login
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.studyplannerapp.AppNavHost.AppNavHost
+import com.example.studyplannerapp.R
 
 @Composable
-fun LoginRoute(viewModel: LoginViewModel = viewModel()) {
+fun LoginRoute(viewModel: AuthViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LoginScreen(
-        uiState = uiState,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onLoginClick = viewModel::onLoginClick
-    )
+    when {
+        uiState.isCheckingSession -> SplashScreen()
+        uiState.isLoggedIn -> AppNavHost(onLogout = viewModel::logout)
+        else -> LoginScreen(
+            uiState = uiState,
+            onEmailChange = viewModel::onEmailChange,
+            onPasswordChange = viewModel::onPasswordChange,
+            onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+            onPrimaryClick = {
+                if (uiState.screen == AuthScreen.REGISTER) viewModel.register() else viewModel.login()
+            },
+            onToggleMode = {
+                viewModel.navigateTo(
+                    if (uiState.screen == AuthScreen.REGISTER) AuthScreen.LOGIN else AuthScreen.REGISTER
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun SplashScreen() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
 }
 
 @Composable
 fun LoginScreen(
-    uiState: LoginUiState,
+    uiState: AuthUiState,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onLoginClick: () -> Unit
+    onConfirmPasswordChange: (String) -> Unit,
+    onPrimaryClick: () -> Unit,
+    onToggleMode: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()){
+    val isRegister = uiState.screen == AuthScreen.REGISTER
 
-        // Background Image
+    val fieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = Color.White.copy(alpha = 0.75f),
+        unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
+        focusedIndicatorColor = Color.Transparent,
+        unfocusedIndicatorColor = Color.Transparent
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
         Image(
             painter = painterResource(id = R.drawable.login_logo),
             contentDescription = null,
@@ -67,7 +99,6 @@ fun LoginScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Optional dark scrim so text stays readable over busy photo
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -87,11 +118,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White.copy(alpha = 0.75f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent)
+                colors = fieldColors
             )
 
             Spacer(Modifier.height(20.dp))
@@ -103,47 +130,63 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White.copy(alpha = 0.75f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent),
+                colors = fieldColors,
                 visualTransformation = PasswordVisualTransformation()
-
             )
+
+            if (isRegister) {
+                Spacer(Modifier.height(20.dp))
+                TextField(
+                    value = uiState.confirmPassword,
+                    onValueChange = onConfirmPasswordChange,
+                    label = { Text("Confirm password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = fieldColors,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+            }
 
             uiState.errorMessage?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
 
+            uiState.infoMessage?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = Color(0xFF2E7D32))
+            }
+
             Spacer(Modifier.height(32.dp))
 
             Button(
-                onClick = onLoginClick,
+                onClick = onPrimaryClick,
                 enabled = !uiState.isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
                     Icon(imageVector = Icons.Filled.Login, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Log in")
+                    Text(if (isRegister) "Create account" else "Log in")
                 }
             }
 
             Spacer(Modifier.height(24.dp))
 
             Row {
-                Text("Don't have an account? ", color = Color.Black)
                 Text(
-                    "Sign up",
+                    if (isRegister) "Already have an account? " else "Don't have an account? ",
+                    color = Color.Black
+                )
+                Text(
+                    if (isRegister) "Log in" else "Sign up",
                     color = Color(0xFF66B2FF),
                     fontWeight = FontWeight.Bold,
                     textDecoration = TextDecoration.Underline,
-                    modifier = Modifier.clickable {/*signup route here*/}
+                    modifier = Modifier.clickable { onToggleMode() }
                 )
             }
         }
