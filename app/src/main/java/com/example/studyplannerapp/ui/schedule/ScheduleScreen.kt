@@ -18,12 +18,19 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,13 +74,7 @@ fun ScheduleScreen(viewModel: ScheduleViewModel = viewModel()) {
             item { Spacer(Modifier.height(16.dp)) }
             item { PlannerHero() }
             item { Spacer(Modifier.height(16.dp)) }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PlannerStat("📚", subjectCount.toString(), "Courses", PurpleTint, BrandPurple, Modifier.weight(1f))
-                    PlannerStat("⏱️", freeDayCount.toString(), "Days/wk", GreenTint, AccentGreen, Modifier.weight(1f))
-                    PlannerStat("🎯", if (uiState.plan != null) "Ready" else "—", "Plan", OrangeTint, AccentOrange, Modifier.weight(1f))
-                }
-            }
+
             item { Spacer(Modifier.height(24.dp)) }
 
             item { SectionHeader("Build your week") }
@@ -85,7 +86,11 @@ fun ScheduleScreen(viewModel: ScheduleViewModel = viewModel()) {
                     label = { Text("Subjects (comma separated)") },
                     placeholder = { Text("Programming, Biology") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = InkNavy,
+                        unfocusedTextColor = InkNavy
+                    )
                 )
             }
             item { Spacer(Modifier.height(8.dp)) }
@@ -169,6 +174,11 @@ private fun PlannerStat(emoji: String, value: String, label: String, bg: Color, 
     }
 }
 
+// 24H time options in 30-minute increments: "00:00", "00:30", ..., "23:30"
+private val timeOptions: List<String> = (0 until 24).flatMap { hour ->
+    listOf("%02d:00".format(hour), "%02d:30".format(hour))
+}
+
 @Composable
 private fun DayRow(dayInput: DayInput, onToggle: (Boolean) -> Unit, onStart: (String) -> Unit, onEnd: (String) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
@@ -181,13 +191,68 @@ private fun DayRow(dayInput: DayInput, onToggle: (Boolean) -> Unit, onStart: (St
                 modifier = Modifier.padding(start = 40.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
-                    value = dayInput.startTime, onValueChange = onStart,
-                    label = { Text("From") }, modifier = Modifier.width(120.dp), shape = RoundedCornerShape(12.dp)
+                TimeDropdownField(
+                    label = "From",
+                    selected = dayInput.startTime,
+                    options = timeOptions,
+                    onSelected = onStart,
+                    modifier = Modifier.width(120.dp)
                 )
-                OutlinedTextField(
-                    value = dayInput.endTime, onValueChange = onEnd,
-                    label = { Text("To") }, modifier = Modifier.width(120.dp), shape = RoundedCornerShape(12.dp)
+                TimeDropdownField(
+                    label = "To",
+                    selected = dayInput.endTime,
+                    options = timeOptions,
+                    onSelected = onEnd,
+                    modifier = Modifier.width(120.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDropdownField(
+    label: String,
+    selected: String,
+    options: List<String>,
+    onSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {}, // read-only: selection happens via the menu
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            shape = RoundedCornerShape(12.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = InkNavy,
+                unfocusedTextColor = InkNavy,
+                disabledTextColor = InkNavy
+            ),
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                .fillMaxWidth()
+        )
+        androidx.compose.material3.DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { time ->
+                DropdownMenuItem(
+                    text = { Text(time) },
+                    onClick = {
+                        onSelected(time)
+                        expanded = false
+                    }
                 )
             }
         }

@@ -13,22 +13,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,7 +44,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.studyplannerapp.AppNavHost.Destination
+import com.example.studyplannerapp.data.Task
 import com.example.studyplannerapp.ui.components.GradientHero
 import com.example.studyplannerapp.ui.components.HeroBrushes
 import com.example.studyplannerapp.ui.components.ScreenBackground
@@ -56,39 +62,29 @@ import com.example.studyplannerapp.ui.theme.InkMuted
 import com.example.studyplannerapp.ui.theme.InkNavy
 import com.example.studyplannerapp.ui.theme.PinkTint
 import com.example.studyplannerapp.ui.theme.PurpleTint
-
-private data class Task(val title: String, val done: Boolean)
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
     onNavigate: (Destination) -> Unit,
     onLogout: () -> Unit,
-    onOpenProfile: () -> Unit = {}
+    onOpenProfile: () -> Unit = {},
+    viewModel: HomeViewModel = viewModel()
 ) {
-    val tasks = remember {
-        mutableStateListOf(
-            Task("Revise Chapter 4 – Algorithm", false),
-            Task("Submit Marketing Essay", true),
-            Task("Practise Calculus Problem", false)
-        )
-    }
+    val tasks by viewModel.tasks.collectAsStateWithLifecycle()
+    val displayName by viewModel.displayName.collectAsStateWithLifecycle()
+    var showAddTaskDialog by remember { mutableStateOf(false) }
+    var newTaskText by remember { mutableStateOf("") }
 
     ScreenBackground {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)
         ) {
-            item { HomeHeader(onOpenProfile = onOpenProfile) }
+            item { HomeHeader(name = displayName, onOpenProfile = onOpenProfile) }
             item { Spacer(Modifier.height(20.dp)) }
-            item { SearchBar() }
-            item { Spacer(Modifier.height(16.dp)) }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    StatCardWithBar("Study Time", "3h 20m", "This week", BrandPurple, 0.4f, Modifier.weight(1f))
-                    StatCardWithBar("Tasks Done", "1/3", null, AccentGreen, 0.33f, Modifier.weight(1f))
-                }
-            }
-            item { Spacer(Modifier.height(24.dp)) }
             item { SectionHeader("AI Features") }
             item { Spacer(Modifier.height(12.dp)) }
             item { DocumentAiCard(onClick = { onNavigate(Destination.DOCUMENT) }) }
@@ -108,7 +104,11 @@ fun HomeScreen(
             item { Spacer(Modifier.height(24.dp)) }
             item {
                 SectionHeader("Today's Plan", trailing = {
-                    Surface(shape = RoundedCornerShape(50), color = PurpleTint) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = PurpleTint,
+                        modifier = Modifier.clickable { showAddTaskDialog = true }
+                    ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -121,18 +121,72 @@ fun HomeScreen(
                 })
             }
             item { Spacer(Modifier.height(12.dp)) }
-            itemsIndexed(tasks) { index, task ->
-                TaskRow(task) {
-                    tasks[index] = task.copy(done = !task.done)
+            if (tasks.isEmpty()) {
+                item {
+                    Text(
+                        "No tasks yet — tap Add task to create one.",
+                        color = InkMuted, fontSize = 14.sp
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
+            } else {
+                items(tasks, key = { it.id }) { task ->
+                    TaskRow(
+                        task = task,
+                        onToggle = { viewModel.toggleTask(task.id) },
+                        onRemove = { viewModel.removeTask(task.id) }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
             }
+        }
+
+        if (showAddTaskDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showAddTaskDialog = false
+                    newTaskText = ""
+                },
+                title = { Text("Add task") },
+                text = {
+                    OutlinedTextField(
+                        value = newTaskText,
+                        onValueChange = { newTaskText = it },
+                        placeholder = { Text("e.g. Revise Chapter 4") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = newTaskText.isNotBlank(),
+                        onClick = {
+                            viewModel.addTask(newTaskText)
+                            newTaskText = ""
+                            showAddTaskDialog = false
+                        }
+                    ) { Text("Add") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showAddTaskDialog = false
+                        newTaskText = ""
+                    }) { Text("Cancel") }
+                }
+            )
         }
     }
 }
 
+// NOTE: LocalDate/DateTimeFormatter need either minSdk 26+ or core library
+// desugaring enabled (they're already java.time, not a new dependency) — add
+// `coreLibraryDesugaring` in your app module if minSdk is below 26.
 @Composable
-private fun HomeHeader(onOpenProfile: () -> Unit) {
+private fun HomeHeader(name: String, onOpenProfile: () -> Unit) {
+    val firstName = name.substringBefore(" ").ifBlank { name }
+    val today = remember {
+        LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault()))
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -140,15 +194,15 @@ private fun HomeHeader(onOpenProfile: () -> Unit) {
     ) {
         Column {
             Text("Hello, Welcome 👋", color = InkMuted, fontSize = 14.sp)
-            Text("Alex Tan", color = InkNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(name, color = InkNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
             Text("Good Morning,", color = InkNavy, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Alex! ", color = BrandPurple, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+                Text("$firstName! ", color = BrandPurple, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
                 Text("☀️", fontSize = 26.sp)
             }
             Spacer(Modifier.height(6.dp))
-            Text("Thursday, 3 July 2026 · Ready to learn?", color = InkMuted, fontSize = 14.sp)
+            Text("$today · Ready to learn?", color = InkMuted, fontSize = 14.sp)
         }
     }
     Spacer(Modifier.height(4.dp))
@@ -165,47 +219,7 @@ private fun HomeHeader(onOpenProfile: () -> Unit) {
             modifier = Modifier.size(40.dp).clickable { onOpenProfile() }
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text("A", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchBar() {
-    Surface(shape = RoundedCornerShape(16.dp), color = CardWhite, shadowElevation = 1.dp) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.Search, null, tint = InkMuted)
-            Spacer(Modifier.size(10.dp))
-            Text("Search documents, courses", color = InkMuted, fontSize = 15.sp)
-        }
-    }
-}
-
-@Composable
-private fun StatCardWithBar(
-    label: String, value: String, sub: String?, accent: Color, progress: Float, modifier: Modifier
-) {
-    Surface(modifier = modifier.height(140.dp), shape = RoundedCornerShape(18.dp), color = CardWhite, shadowElevation = 1.dp) {
-        Column(Modifier.padding(16.dp)) {
-            Text(label, color = InkMuted, fontSize = 14.sp)
-            Spacer(Modifier.height(10.dp))
-            Text(value, color = InkNavy, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-            if (sub != null) {
-                Spacer(Modifier.height(4.dp))
-                Text(sub, color = InkMuted, fontSize = 12.sp)
-            }
-            Spacer(Modifier.weight(1f))
-            Box(
-                Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50))
-                    .background(accent.copy(alpha = 0.15f))
-            ) {
-                Box(
-                    Modifier.fillMaxWidth(progress).height(6.dp).clip(RoundedCornerShape(50)).background(accent)
-                )
+                Text(firstName.firstOrNull()?.uppercaseChar()?.toString() ?: "?", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -213,7 +227,7 @@ private fun StatCardWithBar(
 
 @Composable
 private fun DocumentAiCard(onClick: () -> Unit) {
-    GradientHero(brush = HeroBrushes.document, modifier = Modifier.height(200.dp).clickable { onClick() }) {
+    GradientHero(brush = HeroBrushes.document, modifier = Modifier.clickable { onClick() }) {
         Column {
             Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.15f)) {
                 Icon(
@@ -221,7 +235,7 @@ private fun DocumentAiCard(onClick: () -> Unit) {
                     tint = Color.White, modifier = Modifier.padding(8.dp).size(20.dp)
                 )
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(20.dp))
             Text("Document AI", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Text("Upload notes · AI summarises & organises", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
@@ -255,7 +269,7 @@ private fun SmallFeatureCard(
 }
 
 @Composable
-private fun TaskRow(task: Task, onToggle: () -> Unit) {
+private fun TaskRow(task: Task, onToggle: () -> Unit, onRemove: () -> Unit) {
     val borderColor = if (task.done) AccentGreen else Color.Transparent
     Surface(
         modifier = Modifier.fillMaxWidth().clickable { onToggle() },
@@ -265,7 +279,7 @@ private fun TaskRow(task: Task, onToggle: () -> Unit) {
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (task.done) {
@@ -276,11 +290,15 @@ private fun TaskRow(task: Task, onToggle: () -> Unit) {
             Spacer(Modifier.size(14.dp))
             Text(
                 task.title,
+                modifier = Modifier.weight(1f),
                 color = if (task.done) InkMuted else InkNavy,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 textDecoration = if (task.done) TextDecoration.LineThrough else null
             )
+            IconButton(onClick = onRemove) {
+                Icon(Icons.Filled.Close, "Remove task", tint = InkMuted)
+            }
         }
     }
 }

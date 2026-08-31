@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.studyplannerapp"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -34,6 +34,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures {
         compose = true
@@ -83,4 +84,9 @@ dependencies {
 
     // --- Coroutines (needed for viewModelScope.launch, Flow) ---
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:<same version as your auth-kt>")
+    implementation(libs.kotlinx.serialization.json)
+    implementation("androidx.compose.material3:material3-window-size-class:1.2.1")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

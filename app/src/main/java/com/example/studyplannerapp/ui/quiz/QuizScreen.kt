@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -35,10 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.studyplannerapp.network.models.QuizQuestion
+import com.example.studyplannerapp.repository.QuizResultSummary
 import com.example.studyplannerapp.ui.components.GradientHero
 import com.example.studyplannerapp.ui.components.HeroBrushes
 import com.example.studyplannerapp.ui.components.ScreenBackground
-import com.example.studyplannerapp.ui.components.SectionHeader
 import com.example.studyplannerapp.ui.theme.AccentGreen
 import com.example.studyplannerapp.ui.theme.AccentOrange
 import com.example.studyplannerapp.ui.theme.AccentRed
@@ -72,7 +73,7 @@ fun QuizScreen(viewModel: QuizViewModel = viewModel()) {
 
             when {
                 uiState.quiz == null -> {
-                    item { RecentQuizzes() }
+                    item { RecentQuizzesSection(uiState.recentQuizzes) }
                 }
                 uiState.isFinished -> {
                     item { QuizResultCard(uiState, onRestart = viewModel::reset) }
@@ -87,7 +88,7 @@ fun QuizScreen(viewModel: QuizViewModel = viewModel()) {
 
 @Composable
 private fun QuizHero(uiState: QuizUiState, viewModel: QuizViewModel) {
-    GradientHero(brush = HeroBrushes.quiz, modifier = Modifier.height(220.dp)) {
+    GradientHero(brush = HeroBrushes.quiz) {
         Column {
             Text("Test Your Knowledge", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text("Before the Exam", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -155,6 +156,59 @@ private fun HeroChip(text: String) {
 }
 
 @Composable
+private fun RecentQuizzesSection(quizzes: List<QuizResultSummary>) {
+    if (quizzes.isEmpty()) return
+    Column {
+        Text("Recent Quizzes", color = InkNavy, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 10.dp))
+        Surface(shape = RoundedCornerShape(18.dp), color = CardWhite, shadowElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                quizzes.forEachIndexed { i, result ->
+                    RecentQuizRow(result)
+                    if (i < quizzes.size - 1) Divider(color = Color(0xFFF0EEF8), thickness = 1.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentQuizRow(result: QuizResultSummary) {
+    Row(
+        Modifier.fillMaxWidth().padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(result.title, color = InkNavy, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text("${result.numQuestions} questions", color = InkMuted, fontSize = 13.sp)
+        }
+        Spacer(Modifier.size(12.dp))
+        Surface(shape = RoundedCornerShape(50), color = scoreTint(result.scorePercent)) {
+            Text(
+                "${result.scorePercent}%",
+                color = scoreColor(result.scorePercent),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+    }
+}
+
+private fun scoreColor(percent: Int): Color = when {
+    percent >= 80 -> AccentGreen
+    percent >= 50 -> AccentOrange
+    else -> AccentRed
+}
+
+private fun scoreTint(percent: Int): Color = when {
+    percent >= 80 -> GreenTint
+    percent >= 50 -> OrangeTint
+    else -> RedTint
+}
+
+@Composable
 private fun QuestionCard(uiState: QuizUiState, viewModel: QuizViewModel) {
     val quiz = uiState.quiz ?: return
     val question: QuizQuestion = quiz.questions[uiState.currentIndex]
@@ -162,6 +216,16 @@ private fun QuestionCard(uiState: QuizUiState, viewModel: QuizViewModel) {
 
     Surface(shape = RoundedCornerShape(20.dp), color = CardWhite, shadowElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Text(
+                    "Try another topic",
+                    color = InkMuted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { viewModel.reset() }
+                )
+            }
+            Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -286,34 +350,6 @@ private fun QuizResultCard(uiState: QuizUiState, onRestart: () -> Unit) {
             ) {
                 Text("Try another topic", fontWeight = FontWeight.Bold)
             }
-        }
-    }
-}
-
-@Composable
-private fun RecentQuizzes() {
-    Column {
-        SectionHeader("Recent Quizzes 📝")
-        Spacer(Modifier.height(12.dp))
-        RecentRow("Operating Systems", "10 questions", "85%", AccentGreen)
-        Spacer(Modifier.height(12.dp))
-        RecentRow("Calculus Chapter 4", "10 questions", "72%", AccentOrange)
-    }
-}
-
-@Composable
-private fun RecentRow(title: String, sub: String, score: String, color: Color) {
-    Surface(shape = RoundedCornerShape(16.dp), color = CardWhite, shadowElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.padding(18.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(title, color = InkNavy, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(sub, color = InkMuted, fontSize = 13.sp)
-            }
-            Text(score, color = color, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }

@@ -88,7 +88,11 @@ class AuthViewModel : ViewModel() {
             // sessionStatus emits Authenticated, which flips isLoggedIn above.
             _uiState.update { it.copy(isLoading = false) }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Login failed") }
+            // Supabase's raw exception text includes the full request URL,
+            // auth headers, and http method — never show that to the user.
+            // Every auth failure here (wrong password, unknown email, etc.)
+            // collapses to the same simple message.
+            _uiState.update { it.copy(isLoading = false, errorMessage = "Invalid credentials") }
         }
     }
 

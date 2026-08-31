@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material3.Button
@@ -33,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -90,6 +93,23 @@ fun LoginScreen(
         unfocusedIndicatorColor = Color.Transparent
     )
 
+    // Real phone keyboards (Gboard, Samsung Keyboard, etc.) apply autocorrect
+    // and autocapitalization by default when no KeyboardType is specified.
+    // That can silently change what's actually typed even though the emulator's
+    // plain AOSP keyboard usually doesn't touch it — hence "works on emulator,
+    // fails on device" with the exact same credentials.
+    val emailKeyboardOptions = KeyboardOptions(
+        keyboardType = KeyboardType.Email,
+        autoCorrectEnabled = false,
+        capitalization = KeyboardCapitalization.None
+    )
+
+    val passwordKeyboardOptions = KeyboardOptions(
+        keyboardType = KeyboardType.Password,
+        autoCorrectEnabled = false,
+        capitalization = KeyboardCapitalization.None
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         Image(
@@ -118,7 +138,8 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
-                colors = fieldColors
+                colors = fieldColors,
+                keyboardOptions = emailKeyboardOptions
             )
 
             Spacer(Modifier.height(20.dp))
@@ -131,7 +152,8 @@ fun LoginScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = fieldColors,
-                visualTransformation = PasswordVisualTransformation()
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = passwordKeyboardOptions
             )
 
             if (isRegister) {
@@ -144,7 +166,8 @@ fun LoginScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = fieldColors,
-                    visualTransformation = PasswordVisualTransformation()
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = passwordKeyboardOptions
                 )
             }
 
@@ -179,7 +202,7 @@ fun LoginScreen(
             Row {
                 Text(
                     if (isRegister) "Already have an account? " else "Don't have an account? ",
-                    color = Color.Black
+                    color = Color.White
                 )
                 Text(
                     if (isRegister) "Log in" else "Sign up",

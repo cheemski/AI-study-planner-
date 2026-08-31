@@ -3,6 +3,8 @@ package com.example.studyplannerapp.network
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.postgrest
 
 /**
  * Single shared Supabase client for the whole app.
@@ -26,7 +28,9 @@ object SupabaseClient {
             scheme = "studyplanner"
             host = "reset-callback"
         }
+        install(Postgrest)
     }
 
     val auth get() = client.auth
+    val postgrest get() = client.postgrest
 }

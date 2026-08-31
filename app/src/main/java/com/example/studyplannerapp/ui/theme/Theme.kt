@@ -1,6 +1,5 @@
 package com.example.studyplannerapp.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -43,7 +42,15 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun StudyPlannerAppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Forced to light for now: ScreenBackground/CardWhite/InkNavy etc. across
+    // the app are hardcoded light-mode colors rather than reading from
+    // MaterialTheme.colorScheme, so letting this follow isSystemInDarkTheme()
+    // desyncs unstyled components (e.g. a default OutlinedTextField's text
+    // color) from those hardcoded backgrounds — invisible text on a device
+    // with system dark mode on, even though nothing else in the UI actually
+    // looks dark. Re-enable `isSystemInDarkTheme()` once the rest of the UI
+    // is wired to the theme instead of hardcoded colors.
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

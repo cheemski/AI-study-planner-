@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
 val WEEK_DAYS = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 // One row of user input per day: is the student free, and during what window.
@@ -36,6 +35,24 @@ class ScheduleViewModel(
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
+
+    init {
+        // Restore whatever this user last generated/saved, so it's there
+        // again next time they log in (rather than starting from a blank form).
+        viewModelScope.launch {
+            repository.loadSchedule().onSuccess { saved ->
+                if (saved != null) {
+                    _uiState.update {
+                        it.copy(
+                            subjectsText = saved.subjectsText,
+                            dayInputs = saved.dayInputs,
+                            plan = saved.plan
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun onSubjectsChange(value: String) = _uiState.update { it.copy(subjectsText = value, errorMessage = null) }
 
@@ -74,7 +91,12 @@ class ScheduleViewModel(
 
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         repository.getSchedule(subjects, availability)
-            .onSuccess { plan -> _uiState.update { it.copy(isLoading = false, plan = plan) } }
+            .onSuccess { plan ->
+                _uiState.update { it.copy(isLoading = false, plan = plan) }
+                // Best-effort save; a failure here (e.g. logged out, offline)
+                // shouldn't block the user from seeing the plan they just got.
+                repository.saveSchedule(state.subjectsText, state.dayInputs, plan)
+            }
             .onFailure { e -> _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Could not generate a plan") } }
     }
 }
