@@ -35,6 +35,13 @@ class HomeViewModel(
             ?: "there"
     }
 
+    // Re-reads the display name from Supabase's local auth cache. Called by
+    // HomeScreen every time the Home tab is (re)entered, so a name edited on
+    // EditProfileScreen (a different ViewModel instance) shows up here too.
+    fun refreshDisplayName() {
+        _displayName.value = loadDisplayName()
+    }
+
     init {
         refresh()
     }

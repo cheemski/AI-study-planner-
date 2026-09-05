@@ -51,6 +51,18 @@ fun LoginRoute(viewModel: AuthViewModel = viewModel()) {
     when {
         uiState.isCheckingSession -> SplashScreen()
         uiState.isLoggedIn -> AppNavHost(onLogout = viewModel::logout)
+        uiState.screen == AuthScreen.FORGOT_PASSWORD -> ForgotPasswordScreen(
+            uiState = uiState,
+            onEmailChange = viewModel::onEmailChange,
+            onSendResetClick = viewModel::sendPasswordReset,
+            onBackToLogin = { viewModel.navigateTo(AuthScreen.LOGIN) }
+        )
+        uiState.screen == AuthScreen.RESET_PASSWORD -> ResetPasswordScreen(
+            uiState = uiState,
+            onPasswordChange = viewModel::onPasswordChange,
+            onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+            onUpdatePasswordClick = viewModel::updatePasswordAfterRecovery
+        )
         else -> LoginScreen(
             uiState = uiState,
             onEmailChange = viewModel::onEmailChange,
@@ -63,7 +75,8 @@ fun LoginRoute(viewModel: AuthViewModel = viewModel()) {
                 viewModel.navigateTo(
                     if (uiState.screen == AuthScreen.REGISTER) AuthScreen.LOGIN else AuthScreen.REGISTER
                 )
-            }
+            },
+            onForgotPasswordClick = { viewModel.navigateTo(AuthScreen.FORGOT_PASSWORD) }
         )
     }
 }
@@ -82,7 +95,8 @@ fun LoginScreen(
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
     onPrimaryClick: () -> Unit,
-    onToggleMode: () -> Unit
+    onToggleMode: () -> Unit,
+    onForgotPasswordClick: () -> Unit
 ) {
     val isRegister = uiState.screen == AuthScreen.REGISTER
 
@@ -169,6 +183,17 @@ fun LoginScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = passwordKeyboardOptions
                 )
+            } else {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Forgot password?",
+                    color = Color(0xFF66B2FF),
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .clickable { onForgotPasswordClick() }
+                )
             }
 
             uiState.errorMessage?.let {
@@ -211,6 +236,214 @@ fun LoginScreen(
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable { onToggleMode() }
                 )
+            }
+        }
+    }
+}
+
+// Shown when the user taps "Forgot password?" on the login screen.
+// Collects an email and asks the ViewModel to send a reset link.
+@Composable
+fun ForgotPasswordScreen(
+    uiState: AuthUiState,
+    onEmailChange: (String) -> Unit,
+    onSendResetClick: () -> Unit,
+    onBackToLogin: () -> Unit
+) {
+    val fieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = Color.White.copy(alpha = 0.75f),
+        unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
+        focusedIndicatorColor = Color.Transparent,
+        unfocusedIndicatorColor = Color.Transparent
+    )
+
+    val emailKeyboardOptions = KeyboardOptions(
+        keyboardType = KeyboardType.Email,
+        autoCorrectEnabled = false,
+        capitalization = KeyboardCapitalization.None
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.login_logo),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.15f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                "Reset your password",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                "Enter your account email and we'll send you a link to reset your password.",
+                color = Color.White
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            TextField(
+                value = uiState.email,
+                onValueChange = onEmailChange,
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                colors = fieldColors,
+                keyboardOptions = emailKeyboardOptions
+            )
+
+            uiState.errorMessage?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
+
+            uiState.infoMessage?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = Color(0xFF2E7D32))
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            Button(
+                onClick = onSendResetClick,
+                enabled = !uiState.isLoading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Send reset link")
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Row {
+                Text("Remembered it? ", color = Color.White)
+                Text(
+                    "Log in",
+                    color = Color(0xFF66B2FF),
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier.clickable { onBackToLogin() }
+                )
+            }
+        }
+    }
+}
+
+// Shown after the user opens the password-reset deep link from their email
+// (MainActivity calls viewModel.onRecoveryDeepLinkReceived() to get here).
+@Composable
+fun ResetPasswordScreen(
+    uiState: AuthUiState,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onUpdatePasswordClick: () -> Unit
+) {
+    val fieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = Color.White.copy(alpha = 0.75f),
+        unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
+        focusedIndicatorColor = Color.Transparent,
+        unfocusedIndicatorColor = Color.Transparent
+    )
+
+    val passwordKeyboardOptions = KeyboardOptions(
+        keyboardType = KeyboardType.Password,
+        autoCorrectEnabled = false,
+        capitalization = KeyboardCapitalization.None
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.login_logo),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.15f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                "Choose a new password",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            TextField(
+                value = uiState.password,
+                onValueChange = onPasswordChange,
+                label = { Text("New password") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = fieldColors,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = passwordKeyboardOptions
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            TextField(
+                value = uiState.confirmPassword,
+                onValueChange = onConfirmPasswordChange,
+                label = { Text("Confirm new password") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = fieldColors,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = passwordKeyboardOptions
+            )
+
+            uiState.errorMessage?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            Button(
+                onClick = onUpdatePasswordClick,
+                enabled = !uiState.isLoading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Update password")
+                }
             }
         }
     }

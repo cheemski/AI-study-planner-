@@ -39,10 +39,15 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     init {
-        loadCurrentUser()
+        refreshUser()
     }
 
-    private fun loadCurrentUser() {
+    // Re-reads the current user from Supabase's local auth cache (no network
+    // call — updateUser() already refreshes that cache on success). Called
+    // from init, and again by ProfileScreen every time it's navigated back to,
+    // so an edit made on EditProfileScreen (a separate ViewModel instance) is
+    // picked up here too.
+    fun refreshUser() {
         val user = SupabaseClient.auth.currentUserOrNull()
         val metadataName = user?.userMetadata?.get("full_name")?.jsonPrimitive?.content
         _uiState.update {

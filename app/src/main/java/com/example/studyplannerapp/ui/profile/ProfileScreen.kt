@@ -25,6 +25,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +65,15 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // ProfileScreen and EditProfileScreen sit on separate nav routes, so each
+    // gets its own ProfileViewModel instance — a name saved on EditProfileScreen
+    // won't be reflected in this instance's state automatically. Re-read the
+    // (locally cached, no network call) current user every time this screen is
+    // navigated back to, so the edit shows up immediately.
+    LaunchedEffect(Unit) {
+        viewModel.refreshUser()
+    }
 
     ScreenBackground {
         LazyColumn(

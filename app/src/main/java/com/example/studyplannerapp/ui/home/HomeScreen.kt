@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -31,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -77,6 +77,14 @@ fun HomeScreen(
     val displayName by viewModel.displayName.collectAsStateWithLifecycle()
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var newTaskText by remember { mutableStateOf("") }
+
+    // HomeViewModel is retained (saveState/restoreState) across tab switches
+    // rather than recreated, and it only loaded displayName once in init — so
+    // without this it goes stale after an edit made on EditProfileScreen
+    // (a different ViewModel entirely). Re-read it every time Home is (re)entered.
+    LaunchedEffect(Unit) {
+        viewModel.refreshDisplayName()
+    }
 
     ScreenBackground {
         LazyColumn(
@@ -211,8 +219,6 @@ private fun HomeHeader(name: String, onOpenProfile: () -> Unit) {
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Notifications, "Notifications", tint = InkNavy)
-        Spacer(Modifier.size(14.dp))
         Surface(
             shape = RoundedCornerShape(50),
             color = BrandPurple,

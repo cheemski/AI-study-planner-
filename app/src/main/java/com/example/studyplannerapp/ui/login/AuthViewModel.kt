@@ -127,7 +127,33 @@ class AuthViewModel : ViewModel() {
                 )
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Registration failed") }
+            // Like login(), never show Supabase's raw exception text (request
+            // URLs, headers, status codes, provider-specific wording) to the user.
+            _uiState.update {
+                it.copy(isLoading = false, errorMessage = mapAuthError(e, fallback = "Registration failed. Please try again"))
+            }
+        }
+    }
+
+    // Turns a raw Supabase/network exception into one short, safe sentence for
+    // the UI. `e.message` on these SDK exceptions can contain the full request
+    // URL, HTTP method, and auth/apikey headers — never surface it directly.
+    private fun mapAuthError(e: Exception, fallback: String): String {
+        val raw = e.message?.lowercase().orEmpty()
+        return when {
+            "already registered" in raw ||
+                    "already exists" in raw ||
+                    "user_already_exists" in raw -> "An account with this email already exists"
+            "invalid" in raw && "email" in raw -> "Enter a valid email address"
+            "password" in raw && ("weak" in raw || "should be at least" in raw) ->
+                "Password is too weak. Try a longer password with a mix of characters"
+            "over_email_send_rate_limit" in raw ||
+                    "email rate limit" in raw ||
+                    "rate limit" in raw ||
+                    "too many" in raw -> "Too many attempts. Please wait a while before trying again"
+            "network" in raw || "timeout" in raw || "unable to resolve host" in raw ->
+                "Network error. Check your connection and try again"
+            else -> fallback
         }
     }
 
@@ -145,7 +171,9 @@ class AuthViewModel : ViewModel() {
                 it.copy(isLoading = false, infoMessage = "Reset link sent. Check your email.")
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Could not send reset email") }
+            _uiState.update {
+                it.copy(isLoading = false, errorMessage = mapAuthError(e, fallback = "Could not send reset email. Please try again"))
+            }
         }
     }
 
@@ -175,7 +203,9 @@ class AuthViewModel : ViewModel() {
                 )
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Could not update password") }
+            _uiState.update {
+                it.copy(isLoading = false, errorMessage = mapAuthError(e, fallback = "Could not update password. Please try again"))
+            }
         }
     }
 
